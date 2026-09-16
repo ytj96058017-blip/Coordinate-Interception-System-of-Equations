@@ -9,7 +9,14 @@
     <link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Jua&family=Inter:wght@400;600;700;900&family=JetBrains+Mono:wght@500;700;800&family=Orbitron:wght@600;800;900&display=swap" rel="stylesheet">
     
     <style>
-        body { font-family: 'Jua', 'Inter', sans-serif; }
+        body { 
+            font-family: 'Jua', 'Inter', sans-serif;
+            color: #f8fafc;
+            background-color: #020612;
+            margin: 0;
+            padding: 0;
+        }
+        .hidden { display: none !important; }
         .font-tactical { font-family: 'Orbitron', 'Black Han Sans', sans-serif; }
         .font-mono-code { font-family: 'JetBrains Mono', monospace; }
         
@@ -27,9 +34,7 @@
             box-shadow: 0 0 24px rgba(6, 182, 212, 0.35), inset 0 0 16px rgba(6, 182, 212, 0.15);
         }
 
-        .hud-corner {
-            position: relative;
-        }
+        .hud-corner { position: relative; }
         .hud-corner::before, .hud-corner::after {
             content: '';
             position: absolute;
@@ -45,17 +50,13 @@
             0%, 100% { filter: drop-shadow(0 0 8px rgba(6, 182, 212, 0.5)); }
             50% { filter: drop-shadow(0 0 26px rgba(6, 182, 212, 0.95)) drop-shadow(0 0 45px rgba(168, 85, 247, 0.5)); }
         }
-        .crossfire-glow {
-            animation: laserPulse 2.5s infinite ease-in-out;
-        }
+        .crossfire-glow { animation: laserPulse 2.5s infinite ease-in-out; }
 
         @keyframes dangerAlert {
             from { border-color: #ef4444; background-color: rgba(239, 68, 68, 0.25); }
             to { border-color: #f59e0b; background-color: rgba(245, 158, 11, 0.35); }
         }
-        .danger-siren {
-            animation: dangerAlert 0.75s infinite alternate;
-        }
+        .danger-siren { animation: dangerAlert 0.75s infinite alternate; }
 
         .crosshair-text {
             text-shadow: 0 0 14px rgba(56, 189, 248, 0.8), 0 0 30px rgba(168, 85, 247, 0.6);
@@ -369,7 +370,8 @@
 
                     <!-- Step 3 Fire Button (Opens Payload Modal) -->
                     <div id="fire-crossfire-control" class="hidden flex flex-col items-center gap-2 w-full max-w-md">
-                        <button onclick="openPayloadModal()" class="w-full py-4 bg-gradient-to-r from-cyan-500 via-sky-500 to-fuchsia-500 hover:from-cyan-400 hover:to-fuchsia-400 text-slate-950 font-tactical text-xl md:text-2xl rounded-2xl shadow-xl border-2 border-white active:scale-95 transition animate-pulse flex items-center justify-center gap-2">
+                        <!-- ★ 연타 방지 가드 적용: id="fire-action-btn" 추가 -->
+                        <button id="fire-action-btn" onclick="openPayloadModal()" class="w-full py-4 bg-gradient-to-r from-cyan-500 via-sky-500 to-fuchsia-500 hover:from-cyan-400 hover:to-fuchsia-400 text-slate-950 font-tactical text-xl md:text-2xl rounded-2xl shadow-xl border-2 border-white active:scale-95 transition animate-pulse flex items-center justify-center gap-2">
                             <span>⚡</span><span>듀얼 크로스 레이저 발사 (CROSSFIRE! 💥)</span>
                         </button>
                         <span class="text-xs text-yellow-200 font-semibold font-mono-code">> 두 직선의 교점 100% 락온! 전술 탄두를 선택하여 적함을 격침하세요!</span>
@@ -616,14 +618,14 @@
             const badge = document.getElementById('db-status-badge');
             if (badge) {
                 badge.innerText = "🟢 클라우드 DB 정상 연결!";
-                badge.className = "text-cyan-400 font-bold font-mono-code";
+                badge.className = "text-emerald-400 font-bold font-mono-code";
             }
         } catch (e) {
             useFallback = false;
             const badge = document.getElementById('db-status-badge');
             if (badge) {
                 badge.innerText = "🟢 클라우드 DB 연결 (직접 모드)";
-                badge.className = "text-cyan-400 font-bold font-mono-code";
+                badge.className = "text-emerald-400 font-bold font-mono-code";
             }
         }
 
@@ -647,6 +649,9 @@
         let lastRenderedStage = -1;
         let lastRenderedTarget = -1;
 
+        // ★ [연타 방지 가드 플래그] 4단계 발사 버튼 중복 클릭 방지
+        let isActionProcessing = false;
+
         /*
            중2 수학 핵심: 연립일차방정식 생성기
            - ax + by = c (직선 ①)
@@ -664,12 +669,10 @@
 
             while (attempts < 140) {
                 attempts++;
-                // Target intersection (x, y) with non-zero coordinates
                 let x = Math.floor(Math.random() * 9) - 4; // -4 to 4
                 let y = Math.floor(Math.random() * 9) - 4; // -4 to 4
                 if (x === 0 && y === 0) { x = 2; y = 1; }
 
-                // Coefficient templates
                 let a1, b1, a2, b2;
                 let tacticText = "";
                 let tacticChoices = [];
@@ -679,85 +682,55 @@
                 let secondVal = firstVar === 'x' ? y : x;
 
                 if (firstVar === 'x') {
-                    // Eliminate y to find x first: make y coefficients opposite or identical
                     if (Math.random() < 0.5) {
-                        // b1 = 1, b2 = -1 (Opposite signs: Add equations)
                         a1 = Math.floor(Math.random() * 3) + 1;
                         b1 = 1;
                         a2 = Math.floor(Math.random() * 3) + 1;
                         b2 = -1;
                         tacticText = "두 식을 [더하여] y 소거";
-                        tacticChoices = [
-                            "두 식을 [더하여] y 소거",
-                            "두 식을 [빼서] y 소거",
-                            "식 ①에 2를 곱해 x 소거",
-                            "식 ②에 3을 곱해 y 소거"
-                        ];
+                        tacticChoices = ["두 식을 [더하여] y 소거", "두 식을 [빼서] y 소거", "식 ①에 2를 곱해 x 소거", "식 ②에 3을 곱해 y 소거"];
                     } else {
-                        // b1 = 1, b2 = 1 (Same signs: Subtract equations)
-                        a1 = Math.floor(Math.random() * 2) + 2; // 2 or 3
+                        a1 = Math.floor(Math.random() * 2) + 2;
                         b1 = 1;
                         a2 = 1;
                         b2 = 1;
                         tacticText = "두 식을 [빼서] y 소거";
-                        tacticChoices = [
-                            "두 식을 [빼서] y 소거",
-                            "두 식을 [더하여] y 소거",
-                            "식 ①에 2를 곱해 x 소거",
-                            "두 식을 더해 x 소거"
-                        ];
+                        tacticChoices = ["두 식을 [빼서] y 소거", "두 식을 [더하여] y 소거", "식 ①에 2를 곱해 x 소거", "두 식을 더해 x 소거"];
                     }
                 } else {
-                    // Eliminate x to find y first: make x coefficients opposite or identical
                     if (Math.random() < 0.5) {
-                        // a1 = 1, a2 = -1 (Opposite signs: Add equations)
                         a1 = 1;
                         b1 = Math.floor(Math.random() * 3) + 1;
                         a2 = -1;
                         b2 = Math.floor(Math.random() * 3) + 1;
                         tacticText = "두 식을 [더하여] x 소거";
-                        tacticChoices = [
-                            "두 식을 [더하여] x 소거",
-                            "두 식을 [빼서] x 소거",
-                            "식 ①에 3을 곱해 y 소거",
-                            "식 ②에 2를 곱해 x 소거"
-                        ];
+                        tacticChoices = ["두 식을 [더하여] x 소거", "두 식을 [빼서] x 소거", "식 ①에 3을 곱해 y 소거", "식 ②에 2를 곱해 x 소거"];
                     } else {
-                        // a1 = 1, a2 = 1 (Same signs: Subtract equations)
                         a1 = 1;
                         b1 = Math.floor(Math.random() * 2) + 2;
                         a2 = 1;
                         b2 = 1;
                         tacticText = "두 식을 [빼서] x 소거";
-                        tacticChoices = [
-                            "두 식을 [빼서] x 소거",
-                            "두 식을 [더하여] x 소거",
-                            "식 ②에 2를 곱해 y 소거",
-                            "두 식을 더해 y 소거"
-                        ];
+                        tacticChoices = ["두 식을 [빼서] x 소거", "두 식을 [더하여] x 소거", "식 ②에 2를 곱해 y 소거", "두 식을 더해 y 소거"];
                     }
                 }
 
-                // Determinant check (lines must not be parallel)
                 const det = a1 * b2 - a2 * b1;
                 if (det === 0) continue;
 
                 const c1 = a1 * x + b1 * y;
                 const c2 = a2 * x + b2 * y;
 
-                // Format equation 1
                 let eq1 = `${a1 === 1 ? '' : (a1 === -1 ? '-' : a1)}x`;
                 if (b1 > 0) eq1 += ` + ${b1 === 1 ? '' : b1}y`;
                 else if (b1 < 0) eq1 += ` - ${Math.abs(b1) === 1 ? '' : Math.abs(b1)}y`;
                 eq1 += ` = ${c1}`;
 
-                // Format equation 2
                 let eq2 = `${a2 === 1 ? '' : (a2 === -1 ? '-' : a2)}x`;
                 if (b2 > 0) eq2 += ` + ${b2 === 1 ? '' : b2}y`;
                 else if (b2 < 0) eq2 += ` - ${Math.abs(b2) === 1 ? '' : Math.abs(b2)}y`;
                 eq2 += ` = ${c2}`;
 
-                // Shuffle tactic choices
                 const correctTactic = tacticText;
                 for (let i = tacticChoices.length - 1; i > 0; i--) {
                     const j = Math.floor(Math.random() * (i + 1));
@@ -845,7 +818,6 @@
             }, 100);
         }
 
-        // Clean member list: Deduplicate and maintain order without periodic Firestore heartbeats
         function cleanMemberList(members = []) {
             const map = new Map();
             members.forEach(item => {
@@ -913,10 +885,10 @@
             currentUserName = name;
             currentRoomCode = code;
             myTeam = team;
+            isActionProcessing = false;
 
             const myMemberObj = { id: myPlayerId, name: currentUserName, lastSeen: Date.now(), joinedAt: myJoinedAt };
 
-            // Local BroadcastChannel for zero-cost peer ping synchronization
             try {
                 if (window.BroadcastChannel) {
                     if (bc) bc.close();
@@ -926,6 +898,8 @@
                         if (!msg) return;
                         if (msg.type === 'LOCAL_PING' && msg.team === myTeam) {
                             addTacticalPingCoords(msg.x, msg.y, msg.sender);
+                        } else if (msg.type === 'SYNC_STATE' && msg.payload) {
+                            applyRoomState(msg.payload);
                         }
                     };
                 }
@@ -941,7 +915,6 @@
             else initialData.redMembers = [myMemberObj];
             applyRoomState(initialData);
 
-            // One-time registration upon join to Firestore root collection
             try {
                 if (db) {
                     const roomRef = doc(db, 'crossfire_rooms', currentRoomCode);
@@ -965,7 +938,6 @@
             window.addEventListener('beforeunload', leaveRoomCleanup);
         };
 
-        // Teacher Spectator / Broadcaster Entry Function
         window.joinSpectator = async function() {
             const codeInput = document.getElementById('room-code');
             const code = (codeInput ? codeInput.value.trim() : '') || 'cross201';
@@ -973,6 +945,7 @@
             currentUserName = '교사 중계석';
             currentRoomCode = code;
             myTeam = 'spectator';
+            isActionProcessing = false;
 
             try {
                 if (window.BroadcastChannel) {
@@ -1012,7 +985,7 @@
         };
 
         async function leaveRoomCleanup() {
-            if (!currentRoomCode || !myTeam || !db) return;
+            if (!currentRoomCode || !myTeam || myTeam === 'spectator' || !db) return;
             try {
                 const roomRef = doc(db, 'crossfire_rooms', currentRoomCode);
                 const snap = await getDoc(roomRef);
@@ -1076,7 +1049,7 @@
                 }
             }
 
-            if (data.stormTarget === myTeam && (!window.lastObservedStormId || window.lastObservedStormId !== data.stormId)) {
+            if (data.smokeTarget === myTeam && (!window.lastObservedStormId || window.lastObservedStormId !== data.stormId)) {
                 window.lastObservedStormId = data.stormId;
                 activateStormCover();
             }
@@ -1099,6 +1072,11 @@
 
         async function syncStateUpdate(nextData) {
             applyRoomState(nextData);
+            if (bc) {
+                try {
+                    bc.postMessage({ type: 'SYNC_STATE', payload: nextData });
+                } catch (e) {}
+            }
             if (!useFallback && db) {
                 try {
                     const roomRef = doc(db, 'crossfire_rooms', currentRoomCode);
@@ -1217,7 +1195,6 @@
                     instEl.innerHTML = `<span class="text-yellow-300">📡 [실시간 중계 중] 양 팀의 연립방정식 좌표 요격 작전을 관전하고 있습니다.</span>`;
                 }
 
-                // Display leading team's equations in clue boxes
                 const activeMission = bKills >= rKills ? data.blueMission : data.redMission;
                 if (activeMission) {
                     const eq1El = document.getElementById('eq1-display');
@@ -1228,7 +1205,6 @@
                 return;
             }
 
-            // Normal Student Pipeline UI
             const myRawMembers = team === 'blue' ? (data.blueMembers || []) : (data.redMembers || []);
             const myMembers = cleanMemberList(myRawMembers);
             const currentStage = team === 'blue' ? (data.blueStage || 0) : (data.redStage || 0);
@@ -1459,12 +1435,28 @@
         };
 
         window.openPayloadModal = function() {
+            // ★ [연타 방지 가드 1] 이미 처리 중이면 모달 오픈 차단
+            if (isActionProcessing) return;
             document.getElementById('payload-modal').classList.remove('hidden');
         };
 
         window.choosePayload = async function(payloadType) {
+            // ★ [연타 방지 가드 2] 즉시 잠금 설정 및 버튼 비활성화
+            if (isActionProcessing) return;
+            isActionProcessing = true;
+
+            const fireActionBtn = document.getElementById('fire-action-btn');
+            if (fireActionBtn) {
+                fireActionBtn.disabled = true;
+                fireActionBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            }
+
             document.getElementById('payload-modal').classList.add('hidden');
-            if (!lastKnownRoomData) return;
+            if (!lastKnownRoomData) {
+                isActionProcessing = false;
+                return;
+            }
+
             const data = lastKnownRoomData;
             const enemyTeam = myTeam === 'blue' ? 'red' : 'blue';
             const mission = myTeam === 'blue' ? data.blueMission : data.redMission;
@@ -1507,6 +1499,7 @@
 
                 hitData.lastExplosion = { targetX: mission.targetX, targetY: mission.targetY, id: Date.now() };
                 hitData.updatedAt = Date.now();
+                isActionProcessing = false;
                 await syncStateUpdate(hitData);
             }, 850);
 
